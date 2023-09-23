@@ -3,9 +3,18 @@ from typing import Any, Coroutine
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
+import settings
 import datetime
 import pytz
 import retrieval
+
+
+logger = settings.logging.getLogger("bot")
+"""
+Query data to Retrieval.data
+"""
+retrieval.Retrieval.retrieve("json/save.json")
+prevData: dict = retrieval.Retrieval.data
 
 
 #utc converter
@@ -33,6 +42,22 @@ def localize_time_wHour(hour:int, minute:int, second:int, tz_name: str) -> datet
      aware_datetime = pytz.utc.localize(datetime.datetime(now.year, now.month, now.day, hour, minute, second))
      changed_time = aware_datetime.astimezone(local_tz)
      return changed_time.time()
+
+#Check to see if owner or allowed to send msg
+def is_allowed(interaction: discord.Interaction):
+     user_id = interaction.user.id
+     if user_id == interaction.guild.owner_id:
+          return True
+     if user_id in settings.allowed_users:
+          return True
+     """
+     LEADER ROLE
+     """
+     for r in interaction.user.roles:
+          if r.id == 1110951519194468363:
+               return True
+     
+     return False
 
 
 '''#Select weekday
@@ -117,11 +142,7 @@ class CustomChannelIdError(Exception):
     pass
 
 
-"""
-Query data to Retrieval.data
-"""
-retrieval.Retrieval.retrieve("json/save.json")
-prevData: dict = retrieval.Retrieval.data
+
 
 class Calender(commands.Cog):
 
@@ -144,15 +165,17 @@ class Calender(commands.Cog):
                               "saturday",
                               "sunday"]
           self.announcements: list = prevData["announcements"]
-          self.channelId: int = prevData["channelId"]
+          self.channel_id: int = prevData["channel_id"]
 
-          #Is channelId a real id
+          #Is channel_id a real id
           
           
           #Start tasks        
           self.dailyAnnouncement.start()
 
 
+     
+          
 
      #Cog unload
      def cog_unload(self) -> Coroutine[Any, Any, None]:
@@ -165,7 +188,7 @@ class Calender(commands.Cog):
          timeToStr = self.time1.strftime("%H:%M:%S")
          dataDict = {
                     "time1":timeToStr,
-                    "channelId":self.channelId,
+                    "channel_id":self.channel_id,
                     "announcements":self.announcements
                     }
          retrieval.Retrieval.send("json/save.json", dataDict)
@@ -176,9 +199,10 @@ class Calender(commands.Cog):
      async def dailyAnnouncement(self) -> None:
           date: datetime.date = datetime.date.today()
           if(self.announcements[date.weekday()]!=""):
-               await self.bot.get_channel(self.channelId).send(self.announcements[date.weekday()])
+               await self.bot.get_channel(self.channel_id).send(self.announcements[date.weekday()])
+               logger.info("Successful announcement")
           else:
-              print(f"Nothing at {date}")
+               logger.info("Announcement was empty")
          
 
      #Set announcement time
@@ -186,6 +210,7 @@ class Calender(commands.Cog):
      @app_commands.describe(hour = "The hour (MILITARY TIME)")
      @app_commands.describe(minute = "The minute")
      @app_commands.describe(second = "The second")
+     @app_commands.check(is_allowed)
      async def announcement_set_time(self, interactions: discord.Interaction, hour: int, minute: int, second: int) -> None:
           timeFmt: str = f"{'0' if hour<10 else ''}{hour}:{'0' if minute<10 else ''}{minute}:{'0' if second<10 else ''}{second}"
           if(hour < 0 or 
@@ -201,8 +226,13 @@ class Calender(commands.Cog):
                self.dailyAnnouncement.change_interval(time=time)
                await interactions.response.send_message(f"Changed to {timeFmt}",ephemeral=True)
                self.save_data()
+               logger.info(f"Time1 set to {timeFmt}")
 
- 
+     @announcement_set_time.error
+     async def atime_error(self, interaction: discord.Interaction, error):
+          await interaction.response.send_message("You are not allowed to use this command",ephemeral=True)
+
+
      #Set_announcement autocomplete
      async def day_autocomplete(self, 
                                interaction: discord.Interaction,
@@ -219,29 +249,35 @@ class Calender(commands.Cog):
      @app_commands.autocomplete(day = day_autocomplete)
      @app_commands.describe(day = "Enter a weekday",announcement = 'Enter the announcement, enter "None" to erase the announcement')
      @app_commands.rename(day = "weekday")
+     @app_commands.check(is_allowed)
      async def announcement_set(self, interaction: discord.Interaction, day: str, announcement: str) -> None:
          if day.lower() not in self.WEEKDAYLIST:
              await interaction.response.send_message(f'"{day}" is not a day!', ephemeral=True)
          else:
              self.setterAnnouncement(day.lower(),announcement)
              await interaction.response.send_message("Message changed!",ephemeral=True)
-       
+     
+     @announcement_set.error
+     async def aset_error(self, interaction: discord.Interaction, error):
+          await interaction.response.send_message("You are not allowed to use this command",ephemeral=True)
+
      def setterAnnouncement(self, day: str, msg: str) -> None:
           if msg.lower() == "none":
              self.announcements[self.WEEKDAYLIST.index(day)] = ""
           else:
                self.announcements[self.WEEKDAYLIST.index(day)] = msg
           self.save_data()
-
+          logger.info(f"{day} set to {msg}")
 
      #Set channel
      @app_commands.command(description = "Select channel for daily announcement")
      @app_commands.describe(id = "id for channel, put 0 for this channel")
+     @app_commands.check(is_allowed)
      async def set_announcement_channel(self, interaction: discord.Interaction, id: str) -> None:
           try:
               id = int(id)
           except ValueError:
-              await interaction.response.send_message(f'"{id}" is not a valid channel id')
+              await interaction.response.send_message(f'"{id}" is not a valid channel id', ephemeral=True)
               return
           if(id == 0):
                self.setter_channel(interaction.channel.id)
@@ -254,9 +290,14 @@ class Calender(commands.Cog):
                     self.setter_channel(id)
                     await interaction.response.send_message(f'Channel id changed to "{id}"!', ephemeral=True)
                    
+     @set_announcement_channel.error
+     async def achannel_error(self, interaction: discord.Interaction, error):
+          await interaction.response.send_message("You are not allowed to use this command",ephemeral=True)
+
      def setter_channel(self, id: int) -> None:
-         self.channelId = id
+         self.channel_id = id
          self.save_data()
+         logger.info(f"channel_id set to {id}")
 
 
      #Return Weekday Embed 
@@ -291,7 +332,7 @@ class Calender(commands.Cog):
          embed.add_field(name="*Sunday*",
                          value=f"```{self.announcements[6]} ```",
                          inline=False)
-         embed.set_footer(text = f"Channel id: {self.channelId}")
+         embed.set_footer(text = f"Channel id: {self.channel_id}")
          await interactions.response.send_message(embed=embed,ephemeral=True)     
 
 
@@ -318,7 +359,7 @@ class Calender(commands.Cog):
   
 async def setup(bot: commands.Bot) -> None:
      try:
-          await bot.fetch_channel(prevData["channelId"])
+          await bot.fetch_channel(prevData["channel_id"])
      except discord.NotFound:
           raise CustomChannelIdError
      await bot.add_cog(Calender(bot))

@@ -1,0 +1,6 @@
+WARNING    - 2023-09-22 17:18:46,500 - client          : PyNaCl is not installed, voice will NOT be supported
+INFO       - 2023-09-22 17:18:46,503 - client          : logging in using static token
+INFO       - 2023-09-22 17:18:47,742 - gateway         : Shard ID None has connected to Gateway (Session ID: cdaf1e8a39515e363480473035b986ed).
+INFO       - 2023-09-22 17:18:50,082 - main            : User: Monkey#9251 (ID: 1153710451415330968)
+INFO       - 2023-09-22 17:19:05,351 - calender        : Time1 changed to 00:00:00 US/Pacific
+INFO       - 2023-09-22 17:19:14,491 - calender        : Channel_id set to 927751365734834269

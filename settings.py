@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 from logging.config import dictConfig
-import logging, pathlib
+import logging
+import pathlib
 import os
 
 load_dotenv()
@@ -8,9 +9,13 @@ load_dotenv()
 #Secrets
 DISCORD_API_SECRET =  os.getenv("DISCORD_API_TOKEN")
 
-SAPO_ID =  os.getenv("SAPO_ID")
+SAPO_ID =  int(os.getenv("SAPO_ID"))
 
-MONKEY_ID =  os.getenv("MONKEY_ID")
+MONKEY_ID =  int(os.getenv("MONKEY_ID"))
+
+allowed_users = [SAPO_ID, MONKEY_ID]
+
+
 
 #For loading cogs
 BASE_DIR = pathlib.Path(__file__).parent
@@ -18,7 +23,7 @@ COGS_DIR = BASE_DIR / "cogs"
 
 
 
-'''LOGGING_CONFIG = {
+LOGGING_CONFIG = {
     "version":1,
     "disabled_existing_loggers":False,
     "formatters":{
@@ -51,7 +56,7 @@ COGS_DIR = BASE_DIR / "cogs"
     },
     "loggers":{
         "bot":{
-            'handlers':['console'],
+            'handlers':['console',"file"],
             "level":"INFO",
             "propagate":False
         },
@@ -63,4 +68,4 @@ COGS_DIR = BASE_DIR / "cogs"
     }
 
 }
-dictConfig(LOGGING_CONFIG)'''
+dictConfig(LOGGING_CONFIG)

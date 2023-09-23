@@ -5,7 +5,7 @@ import datetime
 from discord.ext import commands
 
 #setup bot
-#logger = settings.logging.getLogger("bot")
+logger = settings.logging.getLogger("bot")
 intents: discord.Intents = discord.Intents.all()
 bot: commands.Bot = commands.Bot(command_prefix="!",intents=intents)
 
@@ -22,6 +22,7 @@ async def on_ready() -> None:
     for cog_file in settings.COGS_DIR.glob("*.py"):
         if cog_file.name!= "__init__.py":
             await bot.load_extension(f"cogs.{cog_file.name[:-3]}")
+    logger.info(f"User: {bot.user} (ID: {bot.user.id})")
 
 #Load cogs
 @bot.command()
