@@ -1,5 +1,5 @@
 import typing
-from typing import Any, Coroutine
+from typing import Any, Coroutine, Literal
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
@@ -13,9 +13,10 @@ logger = settings.logging.getLogger("bot")
 """
 Query data to Retrieval.data
 """
-retrieval.Retrieval.retrieve("json/save.json")
-prevData: dict = retrieval.Retrieval.data
 
+#Convert seperated ints to string stime
+def change_to_time_string(hour: int, minute: int, second: int):
+     return f"{'0' if hour<10 else ''}{hour}:{'0' if minute<10 else ''}{minute}:{'0' if second<10 else ''}{second}"
 
 #utc converter
 def get_utc_time_for_local_hour(hour: int, minute: int, second: int, tz_name: str) -> datetime.time:
@@ -25,6 +26,14 @@ def get_utc_time_for_local_hour(hour: int, minute: int, second: int, tz_name: st
      local_time = local_tz.localize(datetime.datetime(now.year, now.month, now.day, hour, minute, second))
      utc_time = local_time.astimezone(pytz.utc)
      return utc_time.time()
+
+def get_utc_time_for_local_datetime(date: datetime.datetime, tz_name: str) -> datetime.time:
+     #Convert local time wanted to utc time
+     local_tz = pytz.timezone(tz_name)
+     now = datetime.datetime.now(tz=local_tz)
+     local_time = local_tz.localize(date)
+     utc_time = local_time.astimezone(pytz.utc)
+     return utc_time
 
 
 #Localize w/ datetime
@@ -43,6 +52,13 @@ def localize_time_wHour(hour:int, minute:int, second:int, tz_name: str) -> datet
      changed_time = aware_datetime.astimezone(local_tz)
      return changed_time.time()
 
+#Localize w/ datetime returning datetime
+def localize_datetime(date: datetime.datetime, tz_name: str) -> datetime.datetime:
+     local_tz = pytz.timezone(tz_name)
+     aware_datetime = pytz.utc.localize(datetime.datetime(date.year, date.month, date.day, date.hour, date.minute, date.second))
+     changed_time = aware_datetime.astimezone(local_tz)
+     return changed_time
+
 #Check to see if owner or allowed to send msg
 def is_allowed(interaction: discord.Interaction):
      user_id = interaction.user.id
@@ -50,9 +66,7 @@ def is_allowed(interaction: discord.Interaction):
           return True
      if user_id in settings.allowed_users:
           return True
-     """
-     LEADER ROLE
-     """
+     #Leader role
      for r in interaction.user.roles:
           if r.id == 1110951519194468363:
                return True
@@ -60,121 +74,14 @@ def is_allowed(interaction: discord.Interaction):
      return False
 
 
-'''#Select weekday
-class SelectWeekday(discord.ui.View):
-     @discord.ui.select(
-          placeholder="Select Weekday",
-          max_values=7,
-          options=[
-               discord.SelectOption(label="Monday",value="0"),
-               discord.SelectOption(label="Tuesday",value="1"),
-               discord.SelectOption(label="Wednesday",value="2"),
-               discord.SelectOption(label="Thursday",value="3"),
-               discord.SelectOption(label="Friday",value="4"),
-               discord.SelectOption(label="Saturday",value="5"),
-               discord.SelectOption(label="Sunday",value="6"),
-          ]
-     )
-     async def selectWeekday(self, interactions: discord.Interaction, select_item:discord.ui.Select):
-          self.answer = select_item.values
-          self.children[0].disabled = True
-          await interactions.message.edit(view=self)
-          await interactions.response.defer()
-          self.stop()'''
-
-#Select option
-'''class SelectWeekday(discord.ui.Select):
-     def __init__(self):
-          placeholder = "Select weekday..."
-          options=[
-               discord.SelectOption(label="Monday",value="0"),
-               discord.SelectOption(label="Tuesday",value="1"),
-               discord.SelectOption(label="Wednesday",value="2"),
-               discord.SelectOption(label="Thursday",value="3"),
-               discord.SelectOption(label="Friday",value="4"),
-               discord.SelectOption(label="Saturday",value="5"),
-               discord.SelectOption(label="Sunday",value="6"),
-          ]
-          super().__init__(placeholder=placeholder,options=options)'''
-
-#Weekday modal
-'''class ModalWeekday(discord.ui.Modal, title = "Change Daily Announcement"):
-     
-     weekday = SelectWeekday()
-     announcement = discord.ui.TextInput(label="Monday", placeholder="Leave empty for no changes", style=discord.TextStyle.short, max_length= 200)
-     
-
-     async def on_submit(self, interactions:discord.Interaction):
-          await interactions.response.send_message("Changed announcement/s",ephemeral=True)
-          self.change = [self.weekday.value, self.announcement.value]
-          await interactions.response.send_message(self.change)'''
-'''class EnumWeekday(enum.Enum):
-     Monday = 0
-     Tuesday = 1
-     Wednesday = 2
-     Thursday = 3
-     Friday = 4
-     Saturday = 5
-     Sunday = 6
-     monday = 0
-     tuesday = 1
-     wednesday = 2
-     thursday = 3
-     friday = 4
-     saturday = 5
-     sunday = 6   ''' 
-
-
-
-
-'''#Announcement group
-class Announcement(app_commands.Group):
-    pass
-announcement = Announcement(name = "announcement",description="The daily announcement")'''
-
-
-class CustomChannelIdError(Exception):
-    
-    """
-    If channel id is not a real channel
-    """
-
-    pass
-
-
-
-
 class Calender(commands.Cog):
-
-
-     
-     #Check if daylight savings happened
-     timeList = prevData["time1"].split(':')
-     time1 = localize_time_wHour(int(timeList[0]),int(timeList[1]),int(timeList[2]),"US/Pacific")
-     time1 = get_utc_time_for_local_hour(time1.hour,time1.minute,time1.second, "US/Pacific")
 
 
      def __init__(self, bot: commands.Bot
                  ) -> None:
           self.bot = bot
-          self.WEEKDAYLIST = ["monday",
-                              "tuesday",
-                              "wednesday",
-                              "thursday",
-                              "friday",
-                              "saturday",
-                              "sunday"]
-          self.announcements: list = prevData["announcements"]
-          self.channel_id: int = prevData["channel_id"]
-
-          #Is channel_id a real id
-          
-          
-          #Start tasks        
-          self.dailyAnnouncement.start()
-
-
-     
+          self.MONTHLIST = ["January","Febuary","March","April","May","June","July","August","September","October","November","December"]
+          self.remindLoop.start()
           
 
      #Cog unload
@@ -182,159 +89,254 @@ class Calender(commands.Cog):
          self.announcements.stop()
          return super().cog_unload()
 
-
-     #Save to json/save.json
-     def save_data(self) -> None:
-         timeToStr = self.time1.strftime("%H:%M:%S")
-         dataDict = {
-                    "time1":timeToStr,
-                    "channel_id":self.channel_id,
-                    "announcements":self.announcements
-                    }
-         retrieval.Retrieval.send("json/save.json", dataDict)
-         
-
-     #The daily announcement
-     @tasks.loop(time = time1)
-     async def dailyAnnouncement(self) -> None:
-          date: datetime.date = datetime.date.today()
-          if(self.announcements[date.weekday()]!=""):
-               await self.bot.get_channel(self.channel_id).send(self.announcements[date.weekday()])
-               logger.info("Successful announcement")
+     #Log send to
+     async def sendRemind(self,msgTuple: tuple):
+          """
+          Queries from sql table and sends reminder
+          """
+          msg: str = msgTuple[6]
+          #DM
+          if(msgTuple[1]!=0):
+               user: discord.User = await self.bot.fetch_user(msgTuple[3])
+               await user.send(msg)
+               logger.info(f"Sending to user {user.name}, {msgTuple}")
+          #CHANNEL
           else:
-               logger.info("Announcement was empty")
-         
+               channel = await self.bot.fetch_channel(msgTuple[2])
+               await channel.send(msg)
+               logger.info(f"Sending to channel {channel.name}, {msgTuple}")
 
-     #Set announcement time
-     @app_commands.command(description="Set time of day for announcement")
-     @app_commands.describe(hour = "The hour (MILITARY TIME)")
-     @app_commands.describe(minute = "The minute")
-     @app_commands.describe(second = "The second")
-     @app_commands.check(is_allowed)
-     async def announcement_set_time(self, interactions: discord.Interaction, hour: int, minute: int, second: int) -> None:
-          timeFmt: str = f"{'0' if hour<10 else ''}{hour}:{'0' if minute<10 else ''}{minute}:{'0' if second<10 else ''}{second}"
-          if(hour < 0 or 
-          hour >24 or
-          minute < 0 or
-          minute > 60 or
-          second < 0 or
-          second > 60):
-               await interactions.response.send_message(f"Time {timeFmt} is invalid", ephemeral=True)
-          else:  
-               time = get_utc_time_for_local_hour(hour,minute,second,"US/Pacific")
-               self.time1 = time
-               self.dailyAnnouncement.change_interval(time=time)
-               await interactions.response.send_message(f"Changed to {timeFmt}",ephemeral=True)
-               self.save_data()
-               logger.info(f"Time1 set to {timeFmt}")
-
-     @announcement_set_time.error
-     async def atime_error(self, interaction: discord.Interaction, error):
-          await interaction.response.send_message("You are not allowed to use this command",ephemeral=True)
+     def repeatRemind(self,msgTuple: tuple):
+          """
+          Adds time to date int for next reminder
+          """
+          repeat = msgTuple[5]
+          if(repeat!=0):
+               repeatTuple = (msgTuple[1],msgTuple[2],msgTuple[3],msgTuple[4]+repeat,msgTuple[5],msgTuple[6])
 
 
-     #Set_announcement autocomplete
-     async def day_autocomplete(self, 
+               retrieval.Retrieval.insert(repeatTuple)
+     #Maybe stop the loop all together and then changetime and put it back, (what original set time does)
+     # def changeTime(self):
+     #      msgList = retrieval.Retrieval.querySoon()
+     #      if msgList:
+     #           date : datetime.datetime = datetime.datetime.fromtimestamp(msgList[0][4])
+     #           time : datetime.time = date.time()
+     #           self.remindLoop.change_interval(time=time)
+     #           logger.info(f"Time changed to {time}")
+     #      else:
+     #           self.remindLoop.cancel()
+     #           logger.info("Stopped loop")
+     def isTime(self) -> bool:
+          """
+          Check if reminder is right time
+          """
+          msgList = retrieval.Retrieval.querySoon()
+          if msgList:
+               reminder_utc_date = datetime.datetime.fromtimestamp(msgList[0][4],pytz.timezone("US/Pacific"))
+               reminder_int = msgList[0][4]
+               dt = datetime.datetime.now(pytz.utc) 
+               utc_time = dt.replace(tzinfo=pytz.utc) 
+               utc_timestamp = utc_time.timestamp()
+               daylight_datetime: datetime.datetime = localize_datetime(reminder_utc_date,"US/Pacific")
+               #daylight
+               if daylight_datetime.dst() == datetime.timedelta(hours = 0):
+                    reminder_int-=3600
+               #Adjust to utc timestamp
+               reminder_int-=3600*7
+
+               if(reminder_int<=utc_timestamp):
+                    logger.info(f"Sending at {reminder_utc_date}")
+                    return True
+          return False
+
+
+
+     @tasks.loop(minutes=1)
+     async def remindLoop(self) -> None:
+          """
+          Loop to send reminder
+          """
+          if not self.isTime():
+               return
+          msgList: list = retrieval.Retrieval.querySoon()
+          for tup in msgList:
+               await self.sendRemind(tup)
+               self.repeatRemind(tup)
+               retrieval.Retrieval.delete(tup[0])
+          
+          
+
+     async def month_autocomplete(self, 
                                interaction: discord.Interaction,
                                 current: str
                                 ) -> typing.List[app_commands.Choice[str]]:
-         listWeekdays = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]  
          return[
-              app_commands.Choice(name=d,value=d)
-              for d in listWeekdays if current.lower() in d.lower()
+              app_commands.Choice(name=m,value=m)
+              for m in self.MONTHLIST if current.lower() in m.lower()
          ]
 
      #Set announcement 
-     @app_commands.command(description="Set announcement on given day")
-     @app_commands.autocomplete(day = day_autocomplete)
-     @app_commands.describe(day = "Enter a weekday",announcement = 'Enter the announcement, enter "None" to erase the announcement')
-     @app_commands.rename(day = "weekday")
+     @app_commands.autocomplete(month = month_autocomplete)
+     @app_commands.command(description="Set a reminder")
+     @app_commands.describe(id = "Channel id, input 0: This channel, input 1: DM")
+     @app_commands.describe(hour = "The hour (MILITARY TIME)")
+     @app_commands.describe(minute = "The minute, leave blank for 0")
+     @app_commands.describe(month = "Enter a month")
+     @app_commands.describe(day = "Enter a day of the month")
+     @app_commands.describe(msg = 'Enter your message')
+     @app_commands.describe(repeat_days = "Repeats every _ days, leave blank for no repeat")
+     @app_commands.describe(repeat_hours = "Repeats after _ hours (Plus days), leave blank for no repeat")
+     @app_commands.rename(msg = "message")
      @app_commands.check(is_allowed)
-     async def announcement_set(self, interaction: discord.Interaction, day: str, announcement: str) -> None:
-         if day.lower() not in self.WEEKDAYLIST:
-             await interaction.response.send_message(f'"{day}" is not a day!', ephemeral=True)
-         else:
-             self.setterAnnouncement(day.lower(),announcement)
-             await interaction.response.send_message("Message changed!",ephemeral=True)
-     
-     @announcement_set.error
-     async def aset_error(self, interaction: discord.Interaction, error):
-          await interaction.response.send_message("You are not allowed to use this command",ephemeral=True)
-
-     def setterAnnouncement(self, day: str, msg: str) -> None:
-          if msg.lower() == "none":
-             self.announcements[self.WEEKDAYLIST.index(day)] = ""
+     async def reminder_set(self, interaction: discord.Interaction, id:str, hour:int, month: str, day: int, msg: str, minute:int = 0, repeat_days: int = 0, repeat_hours: int = 0) -> None:
+          """
+          COMMAND TO LET USER EASILY INSERT REMINDER INTO SQLTABLE  
+          """
+          #AUTOMATE YEAR
+          int_month = self.MONTHLIST.index(month)+1
+          date_now = datetime.datetime.now()
+          now_month = date_now.month
+          if(now_month<=int_month):
+               year = 2023
           else:
-               self.announcements[self.WEEKDAYLIST.index(day)] = msg
-          self.save_data()
-          logger.info(f"{day} set to {msg}")
-
-     #Set channel
-     @app_commands.command(description = "Select channel for daily announcement")
-     @app_commands.describe(id = "id for channel, put 0 for this channel")
-     @app_commands.check(is_allowed)
-     async def set_announcement_channel(self, interaction: discord.Interaction, id: str) -> None:
+               year = 2024
+          #REPEATS EVERY ? SECONDS
+          repeat = repeat_days*86400 + repeat_hours*3600
+          dm=False
+          #ASSERT YEAR IS APPROPIATE
+          if(year>2024):
+               await interaction.response.send_message(f"Year {year} is too big",ephemeral=True)
+               return
+          #ASSERT IF DATE IS VALID
           try:
-              id = int(id)
-          except ValueError:
-              await interaction.response.send_message(f'"{id}" is not a valid channel id', ephemeral=True)
-              return
-          if(id == 0):
-               self.setter_channel(interaction.channel.id)
-               await interaction.response.send_message("Channel id changed to this channel!", ephemeral=True)
+               input_datetime = datetime.datetime(year,int_month,day,hour,minute,0)
+               reminder_date = get_utc_time_for_local_datetime(input_datetime,tz_name="US/Pacific")
+          except:
+               await interaction.response.send_message(f'Something went wrong!\nDate "{month}/{day}/{year}, {hour}:{minute}:00" does not exist',ephemeral=True)
+               return
+          #TO TEST W/ UTC TIMESTAMP AND FOR EASY STRFTIME
+          fmtTime = input_datetime.strftime(f"%m/%d/%Y, %H:%M:%S")
+          reminder_date_int : int = reminder_date.timestamp()
+          #CHECK FOR DAYLIGHT
+          daylight_datetime: datetime.datetime = localize_datetime(reminder_date,"US/Pacific")
+
+          if daylight_datetime.dst() == datetime.timedelta(hours = 1):
+               reminder_date_int-=3600
+          #Adjust time for timezone
+          reminder_date_int+= 3600*8
+          #IF DATE OF REMINDER ALREADY HAPPENED
+          dt = datetime.datetime.now(pytz.utc) 
+          utc_time = dt.replace(tzinfo=pytz.utc) 
+          utc_timestamp = utc_time.timestamp()
+          timestampTest = input_datetime.timestamp()
+          if(timestampTest<=utc_timestamp+10):
+               await interaction.response.send_message(f'Date "{fmtTime}" already happened!',ephemeral=True)
+               return
+          #MAKE CHANNEL
+          try:
+               id = int(id)
+          except:
+               await interaction.response.send_message(f"{id} is not a valid id",ephemeral=True)
+               return
+          if(id==1):
+               dm = True
+               msg_tuple = (1,None,interaction.user.id,reminder_date_int,repeat,msg)
           else:
-               channel = self.bot.get_channel(id)
-               if channel is None:
-                    await interaction.response.send_message("Could not find channel\n*Note that I can only find channels within this server*", ephemeral=True)
+               #Check for perms
+               if not is_allowed(interaction):
+                    await interaction.response.send_message("You do not have perms to use this command\n*Can stil use dm feature*",ephemeral=True)
+                    return
+               #Current channel
+               if(id==0):
+                    id = interaction.channel.id
                else:
-                    self.setter_channel(id)
-                    await interaction.response.send_message(f'Channel id changed to "{id}"!', ephemeral=True)
-                   
-     @set_announcement_channel.error
-     async def achannel_error(self, interaction: discord.Interaction, error):
-          await interaction.response.send_message("You are not allowed to use this command",ephemeral=True)
-
-     def setter_channel(self, id: int) -> None:
-         self.channel_id = id
-         self.save_data()
-         logger.info(f"channel_id set to {id}")
+                    channel = self.bot.get_channel(id)
+                    if channel is None:
+                         await interaction.response.send_message("Could not find channel\n*Note that I can only find channels within this server*", ephemeral=True)
+                         return
+               channel = self.bot.get_channel(id)
+               msg_tuple = (0,id,None,reminder_date_int,repeat,msg)
 
 
-     #Return Weekday Embed 
-     @app_commands.command(description="Creates a list of weekday announcements")
-     async def announcement_show(self, interactions: discord.Interaction) -> None:
-         
-         #Format time1
-         localTime = (localize_time(self.time1,"US/Pacific"))
-         fmtTime = localTime.strftime("%H:%M:%S")
+          retrieval.Retrieval.insert(msg_tuple)
 
-         embed = discord.Embed(colour=discord.Colour.green(),
-                               title="**Weekday announcements**",
-                               description=f"Scheduled for {fmtTime}")
-         embed.add_field(name="*Monday*",
-                         value=f"```{self.announcements[0]} ```",
-                         inline=False)
-         embed.add_field(name="*Tuesday*",
-                         value=f"```{self.announcements[1]} ```",
-                         inline=False)
-         embed.add_field(name="*Wednesday*",
-                         value=f"```{self.announcements[2]} ```",
-                         inline=False)
-         embed.add_field(name="*Thursday*",
-                         value=f"```{self.announcements[3]} ```",
-                         inline=False)
-         embed.add_field(name="*Friday*",
-                         value=f"```{self.announcements[4]} ```",
-                         inline=False)
-         embed.add_field(name="*Saturday*",
-                         value=f"```{self.announcements[5]} ```",
-                         inline=False)
-         embed.add_field(name="*Sunday*",
-                         value=f"```{self.announcements[6]} ```",
-                         inline=False)
-         embed.set_footer(text = f"Channel id: {self.channel_id}")
-         await interactions.response.send_message(embed=embed,ephemeral=True)     
+          
 
+          #Embed to send
+          embed = discord.Embed(colour=discord.Colour.dark_gold(),
+                               title="**Reminder set!**",
+                               description=f"Scheduled for {discord.utils.format_dt(input_datetime)}")
+          #Show message
+          embed.add_field(name="*Message:*",
+                         value=f"```{msg} ```",
+                         inline=False)
+          #Show repeat
+          if(repeat!=0):
+               embed.add_field(name="*Repeats:*",
+                              value=f"Every {int(repeat/86400)} days, {int(repeat%86400)/3600} hours",
+                              inline=False)
+          else:
+               embed.add_field(name="*Repeats:*",
+                              value=f"No",
+                              inline=False)
+          #Set footer for sending destination
+          if(dm):
+               embed.set_footer(text=f'Sending as a dm')
+          else:
+               embed.set_footer(text=f'Sending to channel "{channel.name}"')
+
+          await interaction.response.send_message(embed=embed,ephemeral=True)
+
+          logger.info(f"User {interaction.user.name} input {msg_tuple}")
+
+          # if not self.remindLoop.is_running():
+          #      self.remindLoop.start()
+          #      logger.info(f"Started loop at {fmtTime}")
+
+     @app_commands.command(description="Returns all reminders")
+     async def all_reminders(self, interaction:discord.Interaction):
+          queriedList = retrieval.Retrieval.queryAllDate()
+          await interaction.response.send_message(await self.fmtReminder(queriedList),ephemeral=True)
+
+     @app_commands.command(description="Returns all of your dm reminders")
+     async def dm_reminders(self,interaction:discord.Interaction):
+          queriedList = retrieval.Retrieval.queryAllDateDM(interaction.user.id)
+          await interaction.response.send_message(await self.fmtReminder(queriedList),ephemeral=True)
+          
+     @app_commands.command(description="Delete chosen reminder")
+     async def delete_reminder(self,interaction: discord.Interaction, id: int):
+          retrieval.Retrieval.delete(id)
+          await interaction.response.send_message(f"Deleted ID {id}",ephemeral=True)
+
+
+     async def fmtReminder(self,msgList : list) -> str:
+          """
+          Formats tuples to user friendly str
+          Insert tuple with rowid
+          """
+          result: list = []
+          for msgTuple in msgList:
+               assert (len(msgTuple) == 8 and msgTuple[4]==msgTuple[7]) or len(msgTuple)==7
+               reminder_utc_date = datetime.datetime.fromtimestamp(msgTuple[4],pytz.timezone("US/Pacific"))
+               reminder_date = localize_datetime(reminder_utc_date,"US/Pacific")
+               #REPEATS
+               if(msgTuple[5]!=0):
+                    repeat = f"Repeats every {int(int(msgTuple[5])/86400)} days, {int(int(msgTuple[5])%86400)/3600} hours"
+               else:
+                    repeat = "Does not repeat"
+               #DM TEST
+               if(msgTuple[1]==1):
+                    result.append( f'{discord.utils.format_dt(reminder_date)}: DM "{msgTuple[6]}", ID {msgTuple[0]} {repeat} ')
+               else:
+                    try:
+                         channel = await self.bot.fetch_channel(int(msgTuple[2]))
+                         channel = channel.name
+                    except:
+                         channel = "Unknown"
+                    result.append(f'{discord.utils.format_dt(reminder_date)}: Channel "{channel}", Message: "{msgTuple[6]}", ID: {msgTuple[0]}, {repeat}')
+          return "\n".join(result)
+          
 
      #Calender group
      @commands.group()
@@ -342,13 +344,46 @@ class Calender(commands.Cog):
         if ctx.invoked_subcommand is None:
             await ctx.send("Input a command")
 
-            
-    #Return current time
+     #Return next time
+     @Calender.command()
+     async def nextInterval(self,ctx) -> None:
+          await ctx.send(self.remindLoop.next_iteration)
+
+     #Return current time
      @Calender.command()
      async def returnCurrentTime(self,ctx) -> None:
         date: datetime.datetime = datetime.datetime.now(pytz.timezone("US/Pacific"))
         strDate: str = discord.utils.format_dt(date)
         await ctx.send(strDate)
+
+     @Calender.command()
+     async def input(self,ctx) -> None:
+          date: datetime.datetime = datetime.datetime.now(pytz.UTC)
+          #CHANGE MESSAGE CONTENT
+          msgTuple: tuple = (0,ctx.channel.id,None,date.timestamp(),ctx.message.content)
+          #Only accepts lists of tuples
+          msgList: list = [msgTuple]
+          retrieval.Retrieval.insert(msgList)
+          
+          await ctx.send(", ".join(map(str,msgTuple)))
+
+     @Calender.command()
+     async def testRemind(self,ctx) -> None:
+          dt = datetime.datetime.now(pytz.utc) 
+          utc_time = dt.replace(tzinfo=pytz.utc) 
+          utc_timestamp = utc_time.timestamp()
+          await ctx.send(dt)
+
+     @Calender.command()
+     async def querySoon(self,ctx) -> None:
+          queriedList = retrieval.Retrieval.querySoon()
+          await ctx.send(queriedList)
+
+
+
+     
+
+
 
     
 
@@ -358,8 +393,4 @@ class Calender(commands.Cog):
 
   
 async def setup(bot: commands.Bot) -> None:
-     try:
-          await bot.fetch_channel(prevData["channel_id"])
-     except discord.NotFound:
-          raise CustomChannelIdError
      await bot.add_cog(Calender(bot))

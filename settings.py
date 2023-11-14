@@ -9,6 +9,7 @@ load_dotenv()
 #Secrets
 DISCORD_API_SECRET =  os.getenv("DISCORD_API_TOKEN")
 
+#PROGRAMMER'S TEST ACCOUNT IDS
 SAPO_ID =  int(os.getenv("SAPO_ID"))
 
 MONKEY_ID =  int(os.getenv("MONKEY_ID"))
